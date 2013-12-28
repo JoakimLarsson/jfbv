@@ -94,7 +94,7 @@
  * CONTRIBUTORS
  *=============
  * Michael Huber - rotate270() function
- * http://www.daniweb.com/code/snippet558.html - alpha blending algorithm
+ * http://www.daniweb.com/software-development/c/code/216791/alpha-blend-algorithm - alpha blending algorithm
  *
  */
 
