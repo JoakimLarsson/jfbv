@@ -38,27 +38,27 @@ jfbv
  NOTE: Requires a framebuffer. To turn it on in Ubuntu pass a kernel argument like vga=792 at
  boot time. Gnome will still trash the image unless you use it from console (ie rescue mode).
 
-   jfbv &lt;filename> [&lt;rot>] [&lt;scale>] [&lt;xpan>] [&lt;ypan>] [&lt;mix>]
+   jfbv <filename> [<rot>] [<scale>] [<xpan>] [<ypan>] [<mix>]
 
-   &lt;rot> = 
+   <rot> = 
    0 -  no rotation (default)
    1 -  90 degree rotation
    2 - 180 degree rotation
    3 - 270 degree rotation
  
-   &lt;scale> = 
+   <scale> = 
    0 - best effort fit framebuffer (default)
    1 - 1:1 (no scaling)
    
-   &lt;xpan> =
+   <xpan> =
    0  - centered x position
    >=1 - pixel offset to the left side
    
-   &lt;ypan> =
+   <ypan> =
    0  - centered x position
    >=1 - pixel offset to the top
    
-   &lt;mix> =
+   <mix> =
    0     - whipe framebuffer before blit of bitmap
    1     - opaque (non transparent) blit of bitmap to framebuffer
    2-255 - alpha value to use for alpha blending mix to frambuffer
