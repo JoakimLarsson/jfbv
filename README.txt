@@ -35,8 +35,9 @@ jfbv
 
  USAGE
  =====
- NOTE: Requires a framebuffer. To turn it on in Ubuntu pass a kernel argument like vga=792 at
- boot time. Gnome will still trash the image unless you use it from console (ie rescue mode).
+ NOTE: Requires a framebuffer. To turn it on in Ubuntu pass a kernel argument like 
+ vga=792 at boot time. Gnome will still trash the image unless you use it from 
+ console (ie rescue mode).
 
    jfbv <filename> [<rot>] [<scale>] [<xpan>] [<ypan>] [<mix>]
 
@@ -69,5 +70,8 @@ jfbv
 
 CONTRIBUTORS
 ============
-   Michael Huber - rotate270() function
-   http://www.daniweb.com/software-development/c/code/216791/alpha-blend-algorithm - alpha blending algorithm
+   Michael Huber 
+     - rotate270() function
+   http://www.daniweb.com/software-development/c/code/216791/alpha-blend-algorithm 
+     - alpha blending algorithm
+
