@@ -11,7 +11,7 @@ jfbv
  jfbv is a commandline jpeg viewer for a Linux framebuffer device. It is developed
  as an excersize in libjpeg and image transformations in general and will only be 
  useful as a helper app when displaying a jpeg image on a framebuffer is needed.
- 
+
  FEATURES
  ========
  - centered rotating in 90 degrees steps
@@ -38,27 +38,27 @@ jfbv
  NOTE: Requires a framebuffer. To turn it on in Ubuntu pass a kernel argument like vga=792 at
  boot time. Gnome will still trash the image unless you use it from console (ie rescue mode).
 
-   jfbv &gt;filename> [&gt;rot>] [&gt;scale>] [&gt;xpan>] [&gt;ypan>] [&gt;mix>]
+   jfbv &lt;filename> [&lt;rot>] [&lt;scale>] [&lt;xpan>] [&lt;ypan>] [&lt;mix>]
 
-   &gt;rot> = 
+   &lt;rot> = 
    0 -  no rotation (default)
    1 -  90 degree rotation
    2 - 180 degree rotation
    3 - 270 degree rotation
  
-   &gt;scale> = 
+   &lt;scale> = 
    0 - best effort fit framebuffer (default)
    1 - 1:1 (no scaling)
    
-   &gt;xpan> =
+   &lt;xpan> =
    0  - centered x position
    >=1 - pixel offset to the left side
    
-   &gt;ypan> =
+   &lt;ypan> =
    0  - centered x position
    >=1 - pixel offset to the top
    
-   &gt;mix> =
+   &lt;mix> =
    0     - whipe framebuffer before blit of bitmap
    1     - opaque (non transparent) blit of bitmap to framebuffer
    2-255 - alpha value to use for alpha blending mix to frambuffer
