@@ -46,9 +46,10 @@
  *
  * LIMITATIONS
  * ===========
- * - only 32 bit RGBa framebuffers
+ * - only 32 bit RGBa or 16 bit RGB565 framebuffers
  * - only first framebuffer device /dev/fb0
  * - no upscaling
+ * - down scaling from fit or below original size doesn't work
  *
  * COMPILATION
  * ===========
@@ -206,8 +207,10 @@ int main(int argc, char **argv)
         unsigned int ox, oy,            /* offset inside framebuffer to target area for bitmap */
                      image_width,       /* original image width */
                      image_height,      /* original image height  */
-                     fb_maxx,           /* framebuffer width */
-                     fb_maxy;           /* framebuffer height */
+                     fb_maxx,           /* framebuffer width  */
+	             fb_maxy,           /* framebuffer height */
+	             fb_bits,           /* framebuffer depth  */
+	             fb_bytes;          /* pixel storage size  */
         int          fb0;               /* framebuffer decriptor */
         int          clr;               /* input argument weather to clear framebuffer */
         struct fb_var_screeninfo fb_info; /* info structure for framebuffer */
@@ -287,6 +290,11 @@ int main(int argc, char **argv)
 	}
 	fb_maxx = fb_info.xres;
 	fb_maxy = fb_info.yres;
+	fb_bits = fb_info.bits_per_pixel;
+	fb_bytes = ((fb_bits == 32 || fb_bits == 24) ? 4 : (fb_bits == 16 ? 2 : 1));
+	printf("Red %d %d %d\n",   fb_info.red.offset, fb_info.red.length, fb_info.red.msb_right);
+	printf("Green %d %d %d\n", fb_info.green.offset, fb_info.green.length, fb_info.green.msb_right);
+	printf("Blue %d %d %d\n",  fb_info.blue.offset, fb_info.blue.length, fb_info.blue.msb_right);
 	close(fb0);
 
 	/* 
@@ -428,8 +436,8 @@ int main(int argc, char **argv)
 	}
 
 	/* Debug outputs */
-	printf("Image width and height      : %dx%d\n", image_width,   image_height);
-	printf("Fb    width and height      : %dx%d\n", fb_maxx, fb_maxy);
+	printf("Image width and height      : %dx%dx%d\n", image_width,   image_height, c);
+	printf("Fb width, height and depth  : %dx%dx%d(%d)\n", fb_maxx, fb_maxy, fb_bits, fb_bytes);
 	printf("Centering offset            : %dx%d\n", ox, oy);
 	printf("Panoration                  : %dx%d\n", xpan, ypan);
 	printf("Bitmap width and height     : %dx%d\n", bitmap_width, bitmap_height);
@@ -445,8 +453,8 @@ int main(int argc, char **argv)
 	 *    bp      - pointer to active bitmap buffer
 	 */
 	lb      = (JSAMPLE *)(*ciptr->mem->alloc_small)((j_common_ptr) ciptr, JPOOL_IMAGE, c*image_width);
-	buffer  = (JSAMPLE *)(*ciptr->mem->alloc_small)((j_common_ptr) ciptr, JPOOL_IMAGE, 4*bitmap_width*bitmap_height);
-	workbuf = (JSAMPLE *)(*ciptr->mem->alloc_small)((j_common_ptr) ciptr, JPOOL_IMAGE, 4*bitmap_width*bitmap_height);
+	buffer  = (JSAMPLE *)(*ciptr->mem->alloc_small)((j_common_ptr) ciptr, JPOOL_IMAGE, fb_bytes * bitmap_width * bitmap_height);
+	workbuf = (JSAMPLE *)(*ciptr->mem->alloc_small)((j_common_ptr) ciptr, JPOOL_IMAGE, fb_bytes * bitmap_width * bitmap_height);
 	bp      = buffer;
 
 	/* 
@@ -460,7 +468,7 @@ int main(int argc, char **argv)
 	last_scanline = 0;
 
 	/* As long as we got scanlines and buffer left (An in case of bugs check) */
-	while (ciptr->output_scanline < image_height && sz <= (4 * bitmap_width * bitmap_height)){
+	while (ciptr->output_scanline < image_height && sz <= (fb_bytes * bitmap_width * bitmap_height)){
 
 	  /* Get a scanline */
 	  jpeg_read_scanlines(ciptr, &lb, 1);
@@ -476,15 +484,29 @@ int main(int argc, char **argv)
 
 		last_scanline = (int)((float)ciptr->output_scanline / scale);
 
-		/* Convert scanline from BGR to RGBa */
-		for (i = 0; i < bitmap_width; i++){
-		  bp[sz + i * 4 + 0] = lb[(int)((int)((float) i * scale) + scanline_offset) * c + 2];
-		  bp[sz + i * 4 + 1] = lb[(int)((int)((float) i * scale) + scanline_offset) * c + 1];
-		  bp[sz + i * 4 + 2] = lb[(int)((int)((float) i * scale) + scanline_offset) * c];
-		  bp[sz + i * 4 + 3] = 0xff; 
+		/* Convert scanline from Jpeg BGR to framebuffer RGBa */
+		switch(fb_bytes){
+		case 4: /* 32 bit framebuffer */
+		  for (i = 0; i < bitmap_width; i++){
+		    bp[sz + i * 4 + 0] = lb[(int)((int)((float) i * scale) + scanline_offset) * c + 2];
+		    bp[sz + i * 4 + 1] = lb[(int)((int)((float) i * scale) + scanline_offset) * c + 1];
+		    bp[sz + i * 4 + 2] = lb[(int)((int)((float) i * scale) + scanline_offset) * c];
+		    bp[sz + i * 4 + 3] = 0xff; 
+		  }
+		  break;
+		case 2: /* 16 bit framebuffer, assuming RGB565 format (Raspberry Pi)*/
+		  for (i = 0; i < bitmap_width; i++){
+		    unsigned char Red = lb[(int)((int)((float) i * scale) + scanline_offset) * c ];
+		    unsigned char Green = lb[(int)((int)((float) i * scale) + scanline_offset) * c  + 1];
+		    unsigned char Blue = lb[(int)((int)((float) i * scale) + scanline_offset) * c  + 2];
+
+		    bp[sz + i * 2 + 0] = ((Green << 3) & 0xe0) | ((Blue >> 3) & 0x1f);
+		    bp[sz + i * 2 + 1] = (Red & 0xf8) | ((Green >> 5) & 0x07);
+		  }
+		  break;
 		}
 
-		sz += bitmap_width * 4;
+		sz += bitmap_width * fb_bytes;
 	      }
 	    }
 	  }
@@ -500,21 +522,21 @@ int main(int argc, char **argv)
 	if (rotate){
 	  bp1 = bp;
 	  bp2 = workbuf;
-	  memcpy(bp2, bp1, sizeof(fb_maxx * fb_maxy * 4));
+	  memcpy(bp2, bp1, sizeof(fb_maxx * fb_maxy * fb_bytes));
 	  switch(rotate){
 	  case 1: /* 90 degrees */
-	    rotate90(bp2, bp1, bitmap_width, bitmap_height, 4);
+	    rotate90(bp2, bp1, bitmap_width, bitmap_height, fb_bytes);
 	    fb_bitmap_width  = bitmap_height;
 	    fb_bitmap_height = bitmap_width;
 	    bp = bp2;
 	    break;
 	  case 2: /* 180 degrees */
-	    rotate90(bp2, bp1, bitmap_width,  bitmap_height, 4);
-	    rotate90(bp1, bp2, bitmap_height, bitmap_width, 4);
+	    rotate90(bp2, bp1, bitmap_width,  bitmap_height, fb_bytes);
+	    rotate90(bp1, bp2, bitmap_height, bitmap_width, fb_bytes);
 	    bp = bp1;
 	    break;
 	  case 3: /* 270 degrees */
-	    rotate270(bp2, bp1, bitmap_width, bitmap_height, 4);
+	    rotate270(bp2, bp1, bitmap_width, bitmap_height, fb_bytes);
 	    fb_bitmap_width  = bitmap_height;
 	    fb_bitmap_height = bitmap_width;
 	    bp = bp2;
@@ -531,37 +553,36 @@ int main(int argc, char **argv)
 
 	/* Open and memory map framebuffer */
 	fbd = open("/dev/fb0", O_RDWR);
-	fbm = mmap(NULL, fb_maxx * fb_maxy * 4, PROT_WRITE | PROT_READ, MAP_SHARED, fbd, 0);
+	fbm = mmap(NULL, fb_maxx * fb_maxy * fb_bytes, PROT_WRITE | PROT_READ, MAP_SHARED, fbd, 0);
 
         /* blacken display */
 	if (clr == 0){
-	  memset(fbm, 0, fb_maxx * fb_maxy * 4);
+	  memset(fbm, 0, fb_maxx * fb_maxy * fb_bytes);
 	}
-
 
 	if (clr == 0 || clr == 1){
 	  /* copy buffer to fb */
 	  for (i = 0; i < fb_bitmap_height; i++){
-	    memcpy( (void *)((unsigned long)fbm + 4 * (fb_maxx * (i + oy) + ox)), 
-		    bp + i * fb_bitmap_width * 4, 
-		    fb_bitmap_width * 4);
+	    memcpy( (void *)((unsigned long)fbm + fb_bytes * (fb_maxx * (i + oy) + ox)), 
+		    bp + i * fb_bitmap_width * fb_bytes, 
+		    fb_bitmap_width * fb_bytes);
 	  }
 	}
 	else if (clr >= 2 && clr <= 255){
 	  /* alpha mix buffer to fb */
 	  for (i = 0; i < fb_bitmap_height - 2; i++){
 	    for (j = 0; j < fb_bitmap_width; j++){
-	      *(unsigned int *)((unsigned long)fbm + 4 * (fb_maxx * (i + oy) + ox + j)) =
+	      *(unsigned int *)((unsigned long)fbm + fb_bytes * (fb_maxx * (i + oy) + ox + j)) =
 		alphamix( *(const unsigned int *)((unsigned long)fbm + 
-						    4 * (fb_maxx * (i + oy) + ox + j)),
+						    fb_bytes * (fb_maxx * (i + oy) + ox + j)),
 			    *(const unsigned int *)((unsigned long)bp + 
-						    4 * (i * fb_bitmap_width + j)), clr);
+						    fb_bytes * (i * fb_bitmap_width + j)), clr);
 	    }
 	  }
 	}
 
         /* clean up */
-	munmap(fbm, fb_maxy * fb_maxx * 4);
+	munmap(fbm, fb_maxy * fb_maxx * fb_bytes);
 	close(fbd);
 
 	jpeg_finish_decompress(ciptr);
