@@ -24,9 +24,9 @@ jfbv
  
  LIMITATIONS
  ===========
- - only 32 bit RGBa framebuffers
+ - only 32 bit RGBa or 16 bit RGB565 framebuffers
  - only first framebuffer device /dev/fb0
- - no upscaling
+ - no upscaling or downscale below "fit scale"
  
  COMPILATION
  ===========
