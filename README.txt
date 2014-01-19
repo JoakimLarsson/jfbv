@@ -11,6 +11,12 @@ jfbv
  jfbv is a commandline jpeg viewer for a Linux framebuffer device. It is developed
  as an excersize in libjpeg and image transformations in general and will only be 
  useful as a helper app when displaying a jpeg image on a framebuffer is needed.
+ 
+ Example:
+ 
+  wget -O -  https://fbcdn-sphotos-h-a.akamaihd.net/hphotos-ak-ash3/936270_10151430348345222_818618142_n.jpg | ./jfbv -
+
+ will result in a JPEG image will be fetched from the Internet, scaled to fit, centered and displayed on /dev/fb0.  
 
  FEATURES
  ========
