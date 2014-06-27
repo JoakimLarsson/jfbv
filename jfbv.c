@@ -53,7 +53,7 @@
  *
  * COMPILATION
  * ===========
- * gcc -o jfbv main.c -ljpeg
+ * gcc -o jfbv jfbv.c -ljpeg
  *
  */
 
@@ -246,9 +246,9 @@ int main(int argc, char **argv)
 	  }
 	  else {
 	    struct stat fstat;
-	    stat(argv[1], &fstat);
 
-	    if ( S_ISREG(fstat.st_mode) && 
+	    if ( stat(argv[1], &fstat) == 0 &&
+		 S_ISREG(fstat.st_mode) && 
 		 (ss = fopen(argv[1], "rb")) != NULL){
 	      printf("Opens %s\n", argv[1]);
 	    }
@@ -522,7 +522,7 @@ int main(int argc, char **argv)
 	if (rotate){
 	  bp1 = bp;
 	  bp2 = workbuf;
-	  memcpy(bp2, bp1, sizeof(fb_maxx * fb_maxy * fb_bytes));
+	  /* memcpy(bp2, bp1, sizeof(fb_maxx * fb_maxy * fb_bytes)); */ // Not needed!? 
 	  switch(rotate){
 	  case 1: /* 90 degrees */
 	    rotate90(bp2, bp1, bitmap_width, bitmap_height, fb_bytes);
@@ -552,8 +552,14 @@ int main(int argc, char **argv)
 	 */
 
 	/* Open and memory map framebuffer */
-	fbd = open("/dev/fb0", O_RDWR);
-	fbm = mmap(NULL, fb_maxx * fb_maxy * fb_bytes, PROT_WRITE | PROT_READ, MAP_SHARED, fbd, 0);
+	if ( (fbd = open("/dev/fb0", O_RDWR)) < 0){
+	  perror("Can't open framebuffer");
+	  exit(1);
+	}
+	if ( (fbm = mmap(NULL, fb_maxx * fb_maxy * fb_bytes, PROT_WRITE | PROT_READ, MAP_SHARED, fbd, 0)) == MAP_FAILED){
+	  perror("Can't map framebuffer");
+	  exit(1);	  
+	}
 
         /* blacken display */
 	if (clr == 0){
@@ -583,7 +589,7 @@ int main(int argc, char **argv)
 
         /* clean up */
 	munmap(fbm, fb_maxy * fb_maxx * fb_bytes);
-	close(fbd);
+	close((unsigned int) fbd);
 
 	jpeg_finish_decompress(ciptr);
 	jpeg_destroy_decompress(ciptr);
