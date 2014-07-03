@@ -245,12 +245,15 @@ int main(int argc, char **argv)
 	    ss = stdin;
 	  }
 	  else {
-	    struct stat fstat;
-
-	    if ( stat(argv[1], &fstat) == 0 &&
-		 S_ISREG(fstat.st_mode) && 
-		 (ss = fopen(argv[1], "rb")) != NULL){
-	      printf("Opens %s\n", argv[1]);
+	    if ( (ss = fopen(argv[1], "rb")) != NULL ){
+	      struct stat fstat;
+	      if (stat(argv[1], &fstat) == 0 && S_ISREG(fstat.st_mode)){
+		printf("Opens %s\n", argv[1]);
+	      }
+	      else{
+		printf("File %s is not a regular file\n", argv[1]);
+		exit(1);
+	      }
 	    }
 	    else {
 	      printf("Can't open file %s\n", argv[1]);
