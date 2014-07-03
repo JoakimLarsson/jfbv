@@ -58,12 +58,12 @@ jfbv
    1 - 1:1 (no scaling)
    
    <xpan> =
-   0  - centered x position
-   >=1 - pixel offset to the left side
+   0   - centered x position
+   <>0 - pixel horizontal offset from center position
    
    <ypan> =
-   0  - centered x position
-   >=1 - pixel offset to the top
+   0   - centered y position
+   <>0 - pixel vertical offset from center position
    
    <mix> =
    0     - whipe framebuffer before blit of bitmap
