@@ -171,11 +171,29 @@ inline static unsigned int alphamix(const unsigned int bg, const unsigned int sr
 {
   /* alpha blending the source and background colors */
   unsigned int rb = (((src & 0x00ff00ff) * a) +
-		     ((bg & 0x00ff00ff) * (0xff - a))) & 0xff00ff00;
+                     ((bg & 0x00ff00ff) * (0xff - a))) & 0xff00ff00;
   unsigned int g = (((src & 0x0000ff00) * a) +
-		    ((bg & 0x0000ff00) * (0xff - a))) & 0x00ff0000;
-       
+                    ((bg & 0x0000ff00) * (0xff - a))) & 0x00ff0000;
+
   return (src & 0xff000000) | ((rb | g) >> 8);
+}
+
+/* alpha blend routine for RGB565 framebuffers */
+inline static unsigned short alphamix16(const unsigned short bg, const unsigned short src, unsigned int a)
+{
+  unsigned int r_bg = (bg >> 11) & 0x1f;
+  unsigned int g_bg = (bg >> 5)  & 0x3f;
+  unsigned int b_bg = bg & 0x1f;
+
+  unsigned int r_src = (src >> 11) & 0x1f;
+  unsigned int g_src = (src >> 5)  & 0x3f;
+  unsigned int b_src = src & 0x1f;
+
+  r_bg = (r_src * a + r_bg * (0xff - a)) >> 8;
+  g_bg = (g_src * a + g_bg * (0xff - a)) >> 8;
+  b_bg = (b_src * a + b_bg * (0xff - a)) >> 8;
+
+  return (r_bg << 11) | (g_bg << 5) | b_bg;
 }
 
 /*
@@ -577,18 +595,30 @@ int main(int argc, char **argv)
 		    fb_bitmap_width * fb_bytes);
 	  }
 	}
-	else if (clr >= 2 && clr <= 255){
-	  /* alpha mix buffer to fb */
-	  for (i = 0; i < fb_bitmap_height - 2; i++){
-	    for (j = 0; j < fb_bitmap_width; j++){
-	      *(unsigned int *)((unsigned long)fbm + fb_bytes * (fb_maxx * (i + oy) + ox + j)) =
-		alphamix( *(const unsigned int *)((unsigned long)fbm + 
-						    fb_bytes * (fb_maxx * (i + oy) + ox + j)),
-			    *(const unsigned int *)((unsigned long)bp + 
-						    fb_bytes * (i * fb_bitmap_width + j)), clr);
-	    }
-	  }
-	}
+        else if (clr >= 2 && clr <= 255){
+          /* alpha mix buffer to fb */
+          if (fb_bytes == 4){
+            for (i = 0; i < fb_bitmap_height - 2; i++){
+              for (j = 0; j < fb_bitmap_width; j++){
+                unsigned int *dst = (unsigned int *)((unsigned char *)fbm + fb_bytes * (fb_maxx * (i + oy) + ox + j));
+                const unsigned int *src = (const unsigned int *)((unsigned char *)bp + fb_bytes * (i * fb_bitmap_width + j));
+                *dst = alphamix(*dst, *src, clr);
+              }
+            }
+          }
+          else if (fb_bytes == 2){
+            for (i = 0; i < fb_bitmap_height - 2; i++){
+              for (j = 0; j < fb_bitmap_width; j++){
+                unsigned short *dst = (unsigned short *)((unsigned char *)fbm + fb_bytes * (fb_maxx * (i + oy) + ox + j));
+                const unsigned short *src = (const unsigned short *)((unsigned char *)bp + fb_bytes * (i * fb_bitmap_width + j));
+                *dst = alphamix16(*dst, *src, clr);
+              }
+            }
+          }
+          else{
+            fprintf(stderr, "Unsupported fb_bytes %u for alpha blending\n", fb_bytes);
+          }
+        }
 
         /* clean up */
 	munmap(fbm, fb_maxy * fb_maxx * fb_bytes);
