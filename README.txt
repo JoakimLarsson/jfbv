@@ -36,7 +36,7 @@ jfbv
  
  COMPILATION
  ===========
- gcc -o jfbv main.c -ljpeg
+gcc -o jfbv jfbv.c -ljpeg
  
 
  USAGE
