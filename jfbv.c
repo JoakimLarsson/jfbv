@@ -114,8 +114,8 @@
 
 /* prototypes */
 static unsigned int alphamix(const unsigned int bg, const unsigned int src, unsigned int a);
-void rotate270(char *dp, char *sp, int xres, int yres, int c);
-void rotate90(char *dp, char *sp, int xres, int yres, int c);
+void rotate270(unsigned char *dp, const unsigned char *sp, int xres, int yres, int c);
+void rotate90(unsigned char *dp, const unsigned char *sp, int xres, int yres, int c);
 void jpeg_cb_error_exit(j_common_ptr cinfo) __attribute__ ((noreturn));
 
 /* 
@@ -138,7 +138,7 @@ void jpeg_cb_error_exit(j_common_ptr cinfo)
 /*
  * Rotation routines 
  */
-void rotate270(char *dp, char *sp, int xres, int yres, int c)
+void rotate270(unsigned char *dp, const unsigned char *sp, int xres, int yres, int c)
 {
     int x,y;
 
@@ -149,7 +149,7 @@ void rotate270(char *dp, char *sp, int xres, int yres, int c)
             memcpy(dp + x + y*yres*c ,sp + (xres - 1 - y)*c + x * xres  ,c);
 }
 
-void rotate90(char *dp, char *sp, int xres, int yres, int c)
+void rotate90(unsigned char *dp, const unsigned char *sp, int xres, int yres, int c)
 {
   int x, y, z, pos, tmp;
 
@@ -208,8 +208,8 @@ int main(int argc, char **argv)
             scaling, 
             xpan, 
             ypan;
-        char *buffer,               /* buffer pointers */
-             *workbuf;
+        unsigned char *buffer,      /* buffer pointers */
+                     *workbuf;
         unsigned char *bp, *bp1, *bp2;
         unsigned int  last_scanline,   /* previous used scanline after scaling */
                       scanline_offset, /* first pixel to be copied to framebuffer of a scanline */
@@ -598,7 +598,7 @@ int main(int argc, char **argv)
         else if (clr >= 2 && clr <= 255){
           /* alpha mix buffer to fb */
           if (fb_bytes == 4){
-            for (i = 0; i < fb_bitmap_height - 2; i++){
+            for (i = 0; i < fb_bitmap_height; i++){
               for (j = 0; j < fb_bitmap_width; j++){
                 unsigned int *dst = (unsigned int *)((unsigned char *)fbm + fb_bytes * (fb_maxx * (i + oy) + ox + j));
                 const unsigned int *src = (const unsigned int *)((unsigned char *)bp + fb_bytes * (i * fb_bitmap_width + j));
@@ -607,7 +607,7 @@ int main(int argc, char **argv)
             }
           }
           else if (fb_bytes == 2){
-            for (i = 0; i < fb_bitmap_height - 2; i++){
+            for (i = 0; i < fb_bitmap_height; i++){
               for (j = 0; j < fb_bitmap_width; j++){
                 unsigned short *dst = (unsigned short *)((unsigned char *)fbm + fb_bytes * (fb_maxx * (i + oy) + ox + j));
                 const unsigned short *src = (const unsigned short *)((unsigned char *)bp + fb_bytes * (i * fb_bitmap_width + j));
