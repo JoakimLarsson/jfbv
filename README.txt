@@ -20,7 +20,7 @@ jfbv
 
  FEATURES
  ========
- - centered rotating in 90 degrees steps
+ - centered rotation with arbitrary angles
  - centered positioning for images smaller than framebuffer boundaries
  - clipping of unscaled images exceeding frambuffer boundaries
  - scale to fit
@@ -36,7 +36,7 @@ jfbv
  
  COMPILATION
  ===========
-gcc -o jfbv jfbv.c -ljpeg
+gcc -o jfbv jfbv.c -ljpeg -lm
  
 
  USAGE
@@ -47,11 +47,12 @@ gcc -o jfbv jfbv.c -ljpeg
 
    jfbv <filename> [<rot>] [<scale>] [<xpan>] [<ypan>] [<mix>]
 
-   <rot> = 
-   0 -  no rotation (default)
-   1 -  90 degree rotation
-   2 - 180 degree rotation
-   3 - 270 degree rotation
+  <rot> = rotation angle in degrees
+  0   - no rotation (default)
+  90  - rotate 90 degrees
+  180 - rotate 180 degrees
+  270 - rotate 270 degrees
+  <any other value> - arbitrary rotation
  
    <scale> = 
    0 - best effort fit framebuffer (default)

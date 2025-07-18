@@ -111,11 +111,13 @@
 #include <sys/mman.h>
 #include <jpeglib.h>
 #include <setjmp.h>
+#include <math.h>
 
 /* prototypes */
 static unsigned int alphamix(const unsigned int bg, const unsigned int src, unsigned int a);
 void rotate270(char *dp, char *sp, int xres, int yres, int c);
 void rotate90(char *dp, char *sp, int xres, int yres, int c);
+void rotatefree(char *dp, char *sp, int xres, int yres, int c, float angle);
 void jpeg_cb_error_exit(j_common_ptr cinfo) __attribute__ ((noreturn));
 
 /* 
@@ -161,6 +163,37 @@ void rotate90(char *dp, char *sp, int xres, int yres, int c)
       tmp = (x + y * xres) * c;
       for (z = 0; z < c; z++){
 	dp[pos++] = sp[tmp + z];  
+      }
+    }
+  }
+}
+
+void rotatefree(char *dp, char *sp, int xres, int yres, int c, float angle)
+{
+  int x, y, z;
+  float cx = xres / 2.0f;
+  float cy = yres / 2.0f;
+  float rad = angle * M_PI / 180.0f;
+  float ca = cosf(rad);
+  float sa = sinf(rad);
+
+  printf("Rotating %.2f degrees\n", angle);
+
+  for (y = 0; y < yres; y++) {
+    for (x = 0; x < xres; x++) {
+      float tx = x - cx;
+      float ty = y - cy;
+      float sx =  tx * ca + ty * sa + cx;
+      float sy = -tx * sa + ty * ca + cy;
+
+      if (sx >= 0 && sy >= 0 && sx < xres && sy < yres) {
+        int spix = ((int)sy * xres + (int)sx) * c;
+        int dpix = (y * xres + x) * c;
+        for (z = 0; z < c; z++) {
+          dp[dpix + z] = sp[spix + z];
+        }
+      } else {
+        memset(dp + (y * xres + x) * c, 0, c);
       }
     }
   }
@@ -278,7 +311,7 @@ int main(int argc, char **argv)
 	      exit(1);
 	    }
 	  }
-	  rotate   = argc > 2 ? atoi(argv[2]) : 0; /* 0-3 to rotate 0, 90, 180 and 270 degrees */
+          rotate   = argc > 2 ? atoi(argv[2]) : 0; /* rotation angle in degrees */
 	  scaling  = argc > 3 ? atoi(argv[3]) : 0; /* 0 = best fit, 1 = no scale               */
 	  xpan     = argc > 4 ? atoi(argv[4]) : 0; /* X panoration of bitmap relative origo    */
 	  ypan     = argc > 5 ? atoi(argv[5]) : 0; /* Y panoration of bitmap relative origo    */
@@ -337,10 +370,10 @@ int main(int argc, char **argv)
          *    scanline_offset - start offset on each decoded image pixel row copied to pixmap 
          *    start_scanline  - start decoded image pixel row copied to pixmap 
          */
-	scale = 1;
-	switch(rotate){
-	case 1:
-	case 3:  /* 90 or 270 degrees */
+        scale = 1;
+        switch(((rotate % 360) + 360) % 360){
+        case 90:
+        case 270:  /* 90 or 270 degrees */
 
 	  /* Setup scale to fit screen if required */
 	  if (scaling == 0){
@@ -395,8 +428,8 @@ int main(int argc, char **argv)
 	    bitmap_width = fb_maxy;                              /* Clip bitmap to framebuffer */
 	  }
 	  break;
-	case 0: 
-	case 2: /* 0 or 180 degrees */
+        case 0:
+        case 180: /* 0 or 180 degrees */
 
 	  /* Setup scale to fit screen if required */
 	  if (scaling == 0){
@@ -451,10 +484,9 @@ int main(int argc, char **argv)
 	    bitmap_height = fb_maxy;                             /* Clip bitmap to framebuffer */
 	  }
 	  break;
-	default:
-	  printf ("Unknown rotation, exiting...\n");
-	  exit(1);
-	}
+        default:
+          break;
+        }
 
 	/* Debug outputs */
 	printf("Image width and height      : %dx%dx%d\n", image_width,   image_height, c);
@@ -540,33 +572,37 @@ int main(int argc, char **argv)
 	bp = buffer;
 	fb_bitmap_width  = bitmap_width;
 	fb_bitmap_height = bitmap_height;
-	if (rotate){
-	  bp1 = bp;
-	  bp2 = workbuf;
-	  /* memcpy(bp2, bp1, sizeof(fb_maxx * fb_maxy * fb_bytes)); */ // Not needed!? 
-	  switch(rotate){
-	  case 1: /* 90 degrees */
-	    rotate90(bp2, bp1, bitmap_width, bitmap_height, fb_bytes);
-	    fb_bitmap_width  = bitmap_height;
-	    fb_bitmap_height = bitmap_width;
-	    bp = bp2;
-	    break;
-	  case 2: /* 180 degrees */
-	    rotate90(bp2, bp1, bitmap_width,  bitmap_height, fb_bytes);
-	    rotate90(bp1, bp2, bitmap_height, bitmap_width, fb_bytes);
-	    bp = bp1;
-	    break;
-	  case 3: /* 270 degrees */
-	    rotate270(bp2, bp1, bitmap_width, bitmap_height, fb_bytes);
-	    fb_bitmap_width  = bitmap_height;
-	    fb_bitmap_height = bitmap_width;
-	    bp = bp2;
-	    break;
-	  default:
-	    printf("Unknown rotation\n");
-	    break;
-	  }
-	}
+        if (rotate){
+          int rot_norm = ((rotate % 360) + 360) % 360;
+          bp1 = bp;
+          bp2 = workbuf;
+          if (rot_norm % 90 == 0){
+            switch(rot_norm){
+            case 90:
+              rotate90(bp2, bp1, bitmap_width, bitmap_height, fb_bytes);
+              fb_bitmap_width  = bitmap_height;
+              fb_bitmap_height = bitmap_width;
+              bp = bp2;
+              break;
+            case 180:
+              rotate90(bp2, bp1, bitmap_width,  bitmap_height, fb_bytes);
+              rotate90(bp1, bp2, bitmap_height, bitmap_width, fb_bytes);
+              bp = bp1;
+              break;
+            case 270:
+              rotate270(bp2, bp1, bitmap_width, bitmap_height, fb_bytes);
+              fb_bitmap_width  = bitmap_height;
+              fb_bitmap_height = bitmap_width;
+              bp = bp2;
+              break;
+            default: /* 0 degrees */
+              break;
+            }
+          } else {
+            rotatefree(bp2, bp1, bitmap_width, bitmap_height, fb_bytes, (float)rot_norm);
+            bp = bp2;
+          }
+        }
 	
         /*
 	 * Copy the decoded bitmap centered to the framebuffer
